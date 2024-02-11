@@ -1,8 +1,9 @@
-import React, { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import mapboxgl, { Map } from 'mapbox-gl';
+// @ts-ignore
+import MapboxDirections from '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions';
 
 import './App.css';
-import Header from './Header';
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_KEY || '';
 
@@ -13,6 +14,12 @@ function App() {
   const [lat, setLat] = useState(42.35);
   const [zoom, setZoom] = useState(9);
 
+  const directions = new MapboxDirections({
+    accessToken: process.env.REACT_APP_MAPBOX_KEY,
+    unit: 'metric',
+    profile: 'mapbox/cycling',
+  });
+
   useEffect(() => {
     if (map.current) return;
     if (mapContainer.current) {
@@ -22,12 +29,12 @@ function App() {
         center: [lng, lat],
         zoom: zoom,
       });
+      map.current.addControl(directions, 'top-left');
     }
   }, []);
 
   return (
     <div className='App'>
-      <Header label='Tank Tally' />
       <div
         ref={mapContainer}
         className='map-container'

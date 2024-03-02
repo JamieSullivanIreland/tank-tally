@@ -17,6 +17,7 @@ code {
 }
 
 .location-container {
+  min-width: 10rem;
   background: white;
   padding: 2rem;
   display: flex;

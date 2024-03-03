@@ -1,25 +1,14 @@
 import { useRef, useEffect, useState, SyntheticEvent } from 'react';
 import mapboxgl, { Map } from 'mapbox-gl';
-import axios from 'axios';
-import { v4 as uuid } from 'uuid';
 import { Autocomplete, TextField, Stack } from '@mui/material';
 
 import './App.css';
+import { getLocations } from './common/fetch';
+import { TOKEN } from './common/constants';
 
-const token = process.env.REACT_APP_MAPBOX_KEY || '';
+import type { Location, LocationInput } from './common/types';
 
-mapboxgl.accessToken = token;
-
-interface Location {
-  name: string;
-  place_formatted: string;
-}
-
-interface LocationInput {
-  active: string;
-  start: string;
-  end: string;
-}
+mapboxgl.accessToken = TOKEN;
 
 function App() {
   const map = useRef<Map | null>(null);
@@ -36,7 +25,6 @@ function App() {
     start: '',
     end: '',
   });
-  const sessionId = uuid();
 
   useEffect(() => {
     if (map.current) return;
@@ -51,8 +39,25 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (locationInput.active) {
-      fetch();
+    async function fetchLocations() {
+      await getLocations(locationInput)
+        .then((locations: Location[]) => {
+          if (!locations) return;
+          if (locationInput.active === 'start') {
+            setStartLocationOptions(locations);
+          }
+          if (locationInput.active === 'end') {
+            setEndLocationOptions(locations);
+          }
+        })
+        .catch((err) => console.log(err));
+    }
+
+    if (locationInput.active === 'start') {
+      locationInput.start ? fetchLocations() : setStartLocationOptions([]);
+    }
+    if (locationInput.active === 'end') {
+      locationInput.end ? fetchLocations() : setEndLocationOptions([]);
     }
   }, [locationInput.active, locationInput.start, locationInput.end]);
 
@@ -64,24 +69,6 @@ function App() {
       active: id,
       [id]: value,
     });
-  };
-
-  const fetch = () => {
-    const key = locationInput.active as keyof LocationInput;
-    if (!locationInput[key]) return;
-    axios
-      .get(
-        `https://api.mapbox.com/search/searchbox/v1/suggest?q=${locationInput[key]}&access_token=${token}&session_token=${sessionId}`
-      )
-      .then((res) => {
-        if (locationInput.active === 'start') {
-          setStartLocationOptions(res.data.suggestions);
-        }
-        if (locationInput.active === 'end') {
-          setEndLocationOptions(res.data.suggestions);
-        }
-        console.log(res.data.suggestions);
-      });
   };
 
   // const selectedValues = useMemo(

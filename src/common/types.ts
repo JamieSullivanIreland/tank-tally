@@ -10,10 +10,13 @@ export interface Coordinates {
   latitude: number;
 }
 
+export interface Location extends Coordinates {
+  name?: string;
+}
+
 export interface LocationInput {
-  active: string;
-  start: string;
-  end: string;
+  start: Location;
+  end: Location;
 }
 
 export interface IpInfo {

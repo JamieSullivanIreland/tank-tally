@@ -9,6 +9,7 @@ import {
 
 import './App.css';
 import {
+  getDirections,
   getIpAddress,
   getLocationSuggestions,
   retrieveLocationCoordinates,
@@ -21,6 +22,7 @@ import type {
   LocationInput,
   Coordinates,
   IpInfo,
+  Location,
 } from './common/types';
 
 mapboxgl.accessToken = TOKEN;
@@ -32,10 +34,18 @@ function App() {
   const [locationSuggestions, setLocationSuggestions] = useState<
     LocationSuggestion[]
   >([]);
+  const [activeInput, setActiveInput] = useState<string>('');
   const [locationInput, setLocationInput] = useState<LocationInput>({
-    active: '',
-    start: '',
-    end: '',
+    start: {
+      name: '',
+      longitude: 0,
+      latitude: 0,
+    },
+    end: {
+      name: '',
+      longitude: 0,
+      latitude: 0,
+    },
   });
 
   // Render map and set inital location
@@ -64,17 +74,42 @@ function App() {
   // Fetch location suggestions on input change
   useEffect(() => {
     async function fetchLocations() {
-      const key = locationInput.active as keyof LocationInput;
-      await getLocationSuggestions(locationInput[key])
-        .then((locations: LocationSuggestion[]) => {
-          if (!locations) return;
-          setLocationSuggestions(locations);
-        })
-        .catch((err) => console.log(err));
+      const key = activeInput as keyof LocationInput;
+      const location = locationInput[key] as Location;
+
+      if (location && location.name) {
+        await getLocationSuggestions(location.name)
+          .then((locations: LocationSuggestion[]) => {
+            if (!locations) return;
+            setLocationSuggestions(locations);
+          })
+          .catch((err) => console.log(err));
+      }
     }
 
-    locationInput.start ? fetchLocations() : setLocationSuggestions([]);
-  }, [locationInput.start, locationInput.end]);
+    locationInput.start.name || locationInput.end.name
+      ? fetchLocations()
+      : setLocationSuggestions([]);
+  }, [activeInput, locationInput.start.name, locationInput.end.name]);
+
+  // Fetch directions
+  useEffect(() => {
+    async function fetchDirections() {
+      const start = {
+        longitude: locationInput.start.longitude,
+        latitude: locationInput.start.latitude,
+      };
+      const end = {
+        longitude: locationInput.end.longitude,
+        latitude: locationInput.end.latitude,
+      };
+      await getDirections(start, end);
+    }
+
+    if (locationInput.end.longitude && locationInput.end.latitude) {
+      fetchDirections();
+    }
+  }, [locationInput.end.longitude, locationInput.end.latitude]);
 
   const renderMap = (coordinates: Coordinates, zoom: number) => {
     if (mapContainer.current) {
@@ -89,18 +124,23 @@ function App() {
 
   const handleLocationChange = (e: SyntheticEvent<Element, Event>) => {
     const element = e.target as HTMLInputElement;
-    const { id, value } = element;
+    const key = element.id as keyof LocationInput;
+    setActiveInput(key);
     setLocationInput({
       ...locationInput,
-      active: id,
-      [id]: value,
+      [key]: {
+        ...locationInput[key],
+        name: element.value,
+      },
     });
   };
 
   const handleOnChange = async (e: SyntheticEvent<Element, Event>) => {
     const element = e.target as HTMLInputElement;
+    const { innerText } = element;
+    const key = element.id.split('-')[0] as keyof LocationInput;
     const location = locationSuggestions.find(
-      (location) => formatLocationAddress(location) === element.innerText
+      (location) => formatLocationAddress(location) === innerText
     );
 
     if (location) {
@@ -109,8 +149,17 @@ function App() {
       );
 
       if (map.current && coordinates) {
+        setLocationInput({
+          ...locationInput,
+          [key]: {
+            ...locationInput[key],
+            longitude: coordinates.longitude,
+            latitude: coordinates.latitude,
+          },
+        });
+
         map.current.setCenter([coordinates.longitude, coordinates.latitude]);
-        map.current.setZoom(16);
+        map.current.setZoom(15);
 
         // Set marker options.
         new mapboxgl.Marker({
@@ -140,7 +189,7 @@ function App() {
         >
           <Autocomplete
             id='start'
-            value={locationInput.start}
+            value={locationInput.start.name}
             onInputChange={handleLocationChange}
             onChange={handleOnChange}
             freeSolo
@@ -156,7 +205,7 @@ function App() {
           />
           <Autocomplete
             id='end'
-            value={locationInput.end}
+            value={locationInput.end.name}
             onInputChange={handleLocationChange}
             onChange={handleOnChange}
             freeSolo

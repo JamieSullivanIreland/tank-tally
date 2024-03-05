@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, SyntheticEvent } from 'react';
-import mapboxgl, { Map } from 'mapbox-gl';
+import mapboxgl, { GeoJSONSource, Map } from 'mapbox-gl';
 import {
   Autocomplete,
   TextField,
@@ -103,11 +103,19 @@ function App() {
         longitude: locationInput.end.longitude,
         latitude: locationInput.end.latitude,
       };
-      await getDirections(start, end);
+      return await getDirections(start, end);
     }
 
-    if (locationInput.end.longitude && locationInput.end.latitude) {
-      fetchDirections();
+    if (
+      map.current &&
+      locationInput.end.longitude &&
+      locationInput.end.latitude
+    ) {
+      fetchDirections().then((res) => {
+        const data = res.routes[0];
+        const route = data.geometry.coordinates;
+        paintMapDirections(route);
+      });
     }
   }, [locationInput.end.longitude, locationInput.end.latitude]);
 
@@ -118,6 +126,42 @@ function App() {
         style: 'mapbox://styles/mapbox/streets-v12',
         center: [coordinates.longitude, coordinates.latitude],
         zoom,
+      });
+    }
+  };
+
+  const paintMapDirections = (coordinates: Array<number[]>) => {
+    const geojson: GeoJSON.Feature = {
+      type: 'Feature',
+      properties: {},
+      geometry: {
+        type: 'LineString',
+        coordinates,
+      },
+    };
+    // if the route already exists on the map, we'll reset it using setData
+    if (map.current && map.current.getSource('route')) {
+      const source = map.current.getSource('route') as GeoJSONSource;
+      source.setData(geojson);
+    } else {
+      // otherwise, we'll make a new request
+      if (!map.current) return;
+      map.current.addLayer({
+        id: 'route',
+        type: 'line',
+        source: {
+          type: 'geojson',
+          data: geojson,
+        },
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+        },
+        paint: {
+          'line-color': '#3887be',
+          'line-width': 5,
+          'line-opacity': 0.75,
+        },
       });
     }
   };

@@ -6,7 +6,6 @@ import {
   URL_CREDENTIALS,
   IP_URL,
   TOKEN,
-  TEST_TOKEN,
 } from './constants';
 import { Coordinates } from './types';
 
@@ -25,9 +24,9 @@ export const retrieveLocationCoordinates = async (id: string) =>
 export const getDirections = async (start: Coordinates, end: Coordinates) =>
   await axios
     .get(
-      `${DIRECTIONS_URL}/${start.longitude}%2C${start.latitude}%3B${end.longitude}%2C${end.latitude}?access_token=${TOKEN}}`
+      `${DIRECTIONS_URL}/${start.longitude}%2C${start.latitude}%3B${end.longitude}%2C${end.latitude}?alternatives=true&geometries=geojson&language=en&overview=full&steps=true&access_token=${TOKEN}`
     )
-    .then((res) => res.data.features[0].properties.coordinates)
+    .then((res) => res.data)
     .catch((err) => err);
 
 export const getIpAddress = async () =>
